@@ -1,0 +1,6 @@
+baud: 115200
+data_bits: 8
+stop_bits: 1
+parity: N
+tx_terminator: "\n"
+rx_terminator: "\r\n"
