@@ -5,8 +5,9 @@ Tabouli is written in [Go](https://go.dev/). It's a TUI for interacting with fir
 ![Screenshot](/imgs/tabouli-main.png)
 
 ## Installation
-We use `asdf` to manage golang installtions. Here how to install golang using `asdf`, feel free to use whatever method you like.  
-Enabgle golang plugin:  
+We use `asdf` to manage golang installations.  
+Here how to install golang using `asdf`, feel free to use whatever method you like.  
+Enable golang plugin:  
 `asdf plugin-add golang https://github.com/kennyp/asdf-golang.git`  
 Install latest:  
 `asdf install golang latest`  
@@ -27,7 +28,7 @@ Create a binary:
 
 Run the binary:  
 `tabouli tui /dev/tty.usbserial-2111430`  
-If you are running from a binary, make sure that you place your test files and the default file in `/bin`
+If you are running from a binary, make sure that you place your test files and the default file in `/bin` folder along with your binary.
 
 ## Example
 ![Usage](/imgs/tabouli-usage.gif)
@@ -69,7 +70,8 @@ Currently in order to be able to populate the "Commands" window automatically, t
     cli_lib.println("`comm_test`            Request communications test\n");
     cli_lib.println("`switch_settings`      Get the user settings\r\n");  // Notice the last command ends in \r\n
 
-So each command has backticks around the command, and the description is outside of the command.
+So each command has backticks around the command, and the description is outside of the command.  
+This is not required, it just fills out the "Commands" column. Typing in commands and Test Automation will still work just fine.
 
 ## Future Work   
 - Support a "wait" or "sleep" command in the Test Automation file syntax
