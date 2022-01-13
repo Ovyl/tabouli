@@ -1,7 +1,10 @@
 # Tabouli
 
 ## Information  
-Tabouli is written in [Go](https://go.dev/). It's a TUI for interacting with firmware that supports a CLI. It also supports Test Automation Files that allow you to put in several commands, and it sends each one, waiting for a response after each.  
+Tabouli is a TUI for interacting with firmware/embedded devices that support a CLI via serial interface/virtual COM Port.  
+It supports command history, shortcuts, and Test Automation that allows you to automatically send commands defined in your test file.  
+Tabouli is written in [Go](https://go.dev/).  
+Tabouli is a delicious Mediterranean dish (properly spelled Tabbouleh) and it contains TUI: (T)abo(U)l(I)
 ![Screenshot](/imgs/tabouli-main.png)
 
 ## Installation
@@ -21,9 +24,8 @@ Install Dependencies:
 Run the TUI from Source:  
 `go run main.go tui /dev/tty.usbserial-2111430`
 
-= OR =  
-
-Create a binary:  
+## Running A Binary
+Create the binary:  
 `go build -o bin/tabouli main.go`  
 
 Run the binary:  
