@@ -48,7 +48,7 @@ func init() {
 }
 
 func argsValidation(cmd *cobra.Command, args []string) error {
-	if err := cobra.ExactArgs(1)(cmd, args); err != nil {
+	if err := cobra.ExactArgs(2)(cmd, args); err != nil {
 		return err
 	}
 	return nil

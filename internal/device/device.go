@@ -89,6 +89,17 @@ func (device *Device) TXcmdRXresponse(cmd string) (response string, err error) {
 	return input.String(), err
 }
 
+// This should be called in a routine, it will run forever
+func (device *Device) RXLogsForever(f func(byte)) {
+
+	for {
+		var c, err = device.reader.r.ReadByte()
+		if err == nil {
+			f(c)
+		}
+	}
+}
+
 // This gets the supported commands from the device via the "help" command
 // It expects this format:
 // "`help`                 Get help/usage for commands\n"

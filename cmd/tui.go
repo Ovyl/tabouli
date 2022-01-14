@@ -47,8 +47,29 @@ var tuiCmd = &cobra.Command{
 			log.Fatal(err)
 		}
 
-		device := device.NewDevice(config, terminators)
-		ui := tui.CreateTView(device)
+		cliDevice := device.NewDevice(config, terminators)
+
+		logDeviceconfig := serial.Config{
+			Address:  args[1],
+			BaudRate: 115200,
+			DataBits: 8,
+			StopBits: 1,
+			Parity:   "N",
+			Timeout:  1 * time.Second,
+		}
+		logTerminators := device.Terminators{}
+		logTerminators.RX = "\n"
+		logTerminators.TX = "\n"
+		logDevice := device.NewDevice(logDeviceconfig, logTerminators)
+
+		if err := logDevice.Open(); err != nil {
+			log.Fatal(err)
+		}
+
+		ui := tui.CreateTView(cliDevice, logDevice)
+
+		go logDevice.RXLogsForever(tui.LogToUI)
+
 		if err := ui.Run(); err != nil {
 			log.Fatal(err)
 		}
