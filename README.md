@@ -60,12 +60,15 @@ commands:
 The software will parse the file and send each line (without the "-", that is for YAML file syntax).  
 
 ## Defaults File  
-Please update the `defaults.yaml` file to adjust your serial port connection settings:  
+Please update the `defaults.yaml` file to adjust your serial port connection settings and terminators/delimiters:  
 - Baud Rate
 - Data Bits
 - Stop Bits
 - Parity
-You may also need to adjust the terminators/delimiters for the end of a command sent to the device, and the end of the response from the device (`\n` or `\r\n` or whatever yours might be). These MUST be in double quotes in the `defaults.yaml` file like this: `"\r\n"`.
+- RX Terminator (indicates the end of a response from the device)
+- TX Terminator (added to the end of a commands to the device)
+
+The terminators MUST be in double quotes in the `defaults.yaml` file like this: `"\r\n"`.
 
 ## Firmware Requirements 
 Currently in order to be able to populate the "Commands" window automatically, there is an expected format that the firmware should send back the "help" response, here is how we handle it in our firmware:  
