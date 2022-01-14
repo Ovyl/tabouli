@@ -3,7 +3,10 @@
 ## Information  
 Tabouli is a TUI for interacting with firmware/embedded devices that support a CLI via serial interface/virtual COM Port. It supports command history, shortcuts, and Test Automation that allows you to automatically send commands defined in your test file. 
 
-Tabouli, written in [Go](https://go.dev/), is also a delicious Mediterranean dish (properly spelled Tabbouleh) and it contains the letters T, U, and I: (T)abo(U)l(I)
+Tabouli, written in [Go](https://go.dev/), is also a delicious Mediterranean dish (properly spelled Tabbouleh) and it contains the letters T, U, and I: (T)abo(U)l(I)  
+
+Made @ [Ovyl](https://ovyl.io/) <img src="imgs/ovyl-logo.jpg" alt="ovyl" width="12"/>  
+
 ![Screenshot](/imgs/tabouli-main.png)
 
 ## Installation
