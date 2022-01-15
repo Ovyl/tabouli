@@ -29,6 +29,7 @@ func LogToUI(b byte) {
 }
 
 func CreateTView(device device.Device, deviceLogs device.Device) *tview.Application {
+
 	app = tview.NewApplication()
 	cmdInputHistory = make([]string, 0)
 
@@ -216,25 +217,17 @@ func CreateTView(device device.Device, deviceLogs device.Device) *tview.Applicat
 		mainGrid.SetColumns(40, 80, 0)
 	}
 
-	// Attempt to connect to com port
-	logToHistory("Connecting to COM Port...")
-	if err := device.Open(); err != nil {
-		fmt.Print(err)
-		app.Stop()
+	if device.IsOpen {
+		logToHistory("Connected to CLI COM Port")
 	}
-	logToHistory("Connected!")
+
+	if deviceLogs.IsOpen {
+		logToHistory("Connected to Logging COM Port")
+	}
+
 	logToHistory("Loading commands...")
 
-	// Attempt to connect to com port
-	// logToDeviceLogs("Connecting to COM Port...")
-	// if err := deviceLogs.Open(); err != nil {
-	// 	fmt.Print(err)
-	// 	app.Stop()
-	// }
-	// logToDeviceLogs("Connected!")
-
 	// Load the commands from the device
-	// TODO: check for errors
 	device.LoadCmds()
 	for num, cmd := range device.Commands {
 		cmdListBox.AddItem(cmd.CmdText, cmd.Description, getShortcutRuneForCount(num), nil)

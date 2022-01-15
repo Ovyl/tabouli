@@ -27,6 +27,7 @@ type Device struct {
 	p             serial.Port
 	Commands      []Cmd
 	reader        *crlfReader
+	IsOpen        bool
 	tx_terminator string
 	rx_terminator string
 }
@@ -40,10 +41,12 @@ func NewDevice(config serial.Config, terminators Terminators) Device {
 }
 
 func (device *Device) Open() (err error) {
+	device.IsOpen = false
 	device.p, err = serial.Open(&device.config)
 	if err != nil {
 		return err
 	}
+	device.IsOpen = true
 	device.reader = &crlfReader{
 		r: bufio.NewReader(device.p),
 	}

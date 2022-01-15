@@ -48,9 +48,15 @@ func init() {
 }
 
 func argsValidation(cmd *cobra.Command, args []string) error {
-	if err := cobra.ExactArgs(2)(cmd, args); err != nil {
-		return err
-	}
+	// if err := cobra.ExactArgs(2)(cmd, args); err != nil {
+	// 	return err
+	// }
+	// var positionalArgs = cobra.RangeArgs(1, 2);
+	// if positionalArgs().Error() != nil {
+	// 	return err
+	// }
+
+	//log.Fatalf("args count: %d, args: %v", len(args), args)
 	return nil
 
 }
