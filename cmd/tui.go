@@ -46,24 +46,26 @@ var tuiCmd = &cobra.Command{
 
 		if cliPassed {
 			cliDevice = initCLIDevice(argCLI, defaults)
+			// Attempt to open the cli device
+			if err := cliDevice.Open(); err != nil {
+				log.Fatalf("Failed to open com port for provided CLI device address: %v", err)
+			}
 		}
 		if logsPassed {
 			logDevice = initLogDevice(argLogs, defaults)
+			// Attempt to open the log device
+			if err := logDevice.Open(); err != nil {
+				log.Fatalf("Failed to open com port for provided Log device address: %v", err)
+			}
 		}
 
-		// Attempt to open the cli device
-		if err := cliDevice.Open(); err != nil {
-			log.Fatal(err)
-		}
-
-		// Attempt to open the log device
-		if err := logDevice.Open(); err != nil {
-			log.Fatal(err)
-		}
-
+		// Build the UI
 		ui := tui.CreateTView(cliDevice, logDevice)
 
-		go logDevice.RXLogsForever(tui.LogToUI)
+		// Setup callback for logs received from device to display in the UI
+		if logsPassed {
+			go logDevice.RXLogsForever(tui.LogToUI)
+		}
 
 		if err := ui.Run(); err != nil {
 			log.Fatal(err)

@@ -22,17 +22,15 @@ var (
 	cmdInputHistoryIndex int
 )
 
+// Invoked by the CLI device RX byte routine
 func LogToUI(b byte) {
 	s := []byte{b}
 	logsBox.Write(s)
 	app.ForceDraw()
 }
 
-func CreateTView(device device.Device, deviceLogs device.Device) *tview.Application {
-
-	app = tview.NewApplication()
-	cmdInputHistory = make([]string, 0)
-
+// Builds the Command Box (where you type in commands) UI element
+func uiBuildCmdBox(cliDevice device.Device) {
 	cmdBox = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.ColorBlack).
 		SetPlaceholderStyle(tcell.StyleDefault.Blink(true)).
@@ -43,7 +41,7 @@ func CreateTView(device device.Device, deviceLogs device.Device) *tview.Applicat
 				cmdBox.SetText("")
 				cmdInputHistory = append(cmdInputHistory, cmd)
 				cmdInputHistoryIndex = len(cmdInputHistory)
-				var response, err = device.TXcmdRXresponse(cmd)
+				var response, err = cliDevice.TXcmdRXresponse(cmd)
 				if err != nil {
 					logToHistory(fmt.Sprintf("error reading from device %s\n", err))
 				} else {
@@ -56,7 +54,7 @@ func CreateTView(device device.Device, deviceLogs device.Device) *tview.Applicat
 				cmdBox.SetFieldBackgroundColor(tcell.ColorBlack)
 				return
 			}
-			for _, v := range device.Commands {
+			for _, v := range cliDevice.Commands {
 				// Get first portion of what the user has typed in
 				// We do this in case a command has parameters
 				typedCmd := strings.Split(text, " ")
@@ -93,18 +91,10 @@ func CreateTView(device device.Device, deviceLogs device.Device) *tview.Applicat
 		}
 		return nil
 	})
+}
 
-	// First check for test automation files so its available when creating callback function
-	var automator, automator_err = test_automation.NewTestFileAutomator()
-
-	// Good example of how rows and columns work:
-	// https://github.com/rivo/tview/blob/master/demos/grid/main.go
-
-	// This is the main UI that holds everything
-	mainGrid := tview.NewGrid().
-		SetRows(0).
-		SetColumns(40, 0, 40) // This defines 3 columns where the left most and right most are 40 cells
-
+// Builds the Command Hisory List UI element
+func uiBuildCmdHistory(mainGrid *tview.Grid) {
 	// This is the main "log" of all commands and responses
 	cmdHistoryBox = tview.NewTextView()
 	cmdHistoryBox.SetTitle(" CLI History ").SetBorder(true)
@@ -113,132 +103,107 @@ func CreateTView(device device.Device, deviceLogs device.Device) *tview.Applicat
 		AddItem(cmdHistoryBox, 0, 0, 1, 1, 0, 0, false).
 		AddItem(cmdBox, 1, 0, 1, 1, 0, 0, false)
 	mainGrid.AddItem(historyAndCmdInputGrid, 0, 1, 1, 1, 0, 0, false)
+}
 
-	// Build UI differently if there is a second serial connection for logs
-	noLogs := false
-	if noLogs {
-		// This is the left most column
-		cmdListBox = tview.NewList().
-			SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
-				// Send the command
-				logToHistory(fmt.Sprintf(">> %s", main_text))
-				var response, err = device.TXcmdRXresponse(main_text)
-				if err != nil {
-					logToHistory(fmt.Sprintf("error reading from device %s\n", err))
-				} else {
-					logToHistory(fmt.Sprint(response))
-				}
-			})
-		cmdListBox.SetTitle(" CLI Commands ").SetBorder(true)
-		mainGrid.AddItem(cmdListBox, 0, 0, 1, 1, 0, 0, false)
-
-		// This is the list of test files
-		testFilesListBox = tview.NewList().
-			SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
-				// It would be good if we had already processed and had an object to read from
-				// Then we know how many tests we have
-				if automator_err == nil {
-					var test_err = runAutomatedTest(automator, index, device)
-					if test_err != nil {
-						logToHistory(fmt.Sprintf("%v", test_err))
-					}
-				}
-
-			})
-		testFilesListBox.SetTitle(" Test Files ").
-			SetBorder(true)
-		mainGrid.AddItem(testFilesListBox, 0, 2, 1, 1, 0, 0, false)
-
-		// Load up the Test File Automation
-		logToHistory("Checking for Test Automation files...")
-		if automator_err != nil {
-			logToHistory(fmt.Sprintf("%v", automator_err))
-		} else {
-			logToHistory("Test Automation Files Detected!")
-			for num, testFile := range automator.TestFiles {
-				testFilesListBox.AddItem(testFile.TestFileName, "", getShortcutRuneForCount(num), nil)
+func uiBuildCmdListBox(cliDevice device.Device) {
+	// This is the left most column
+	cmdListBox = tview.NewList().
+		SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
+			// Send the command
+			logToHistory(fmt.Sprintf(">> %s", main_text))
+			var response, err = cliDevice.TXcmdRXresponse(main_text)
+			if err != nil {
+				logToHistory(fmt.Sprintf("error reading from device %s\n", err))
+			} else {
+				logToHistory(fmt.Sprint(response))
 			}
-		}
-	} else {
+		})
+	cmdListBox.SetTitle(" CLI Commands ").SetBorder(true)
+}
 
-		// This is the left most column
-		// CLI Command List
-		cmdListBox = tview.NewList().
-			SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
-				// Send the command
-				logToHistory(fmt.Sprintf(">> %s", main_text))
-				var response, err = device.TXcmdRXresponse(main_text)
-				if err != nil {
-					logToHistory(fmt.Sprintf("error reading from device %s\n", err))
-				} else {
-					logToHistory(fmt.Sprint(response))
+// Builds the Test Automation File list UI element
+func uiBuildTestAutomationFileListBox(cliDevice device.Device, automator test_automation.TestFileAutomator, filesPresent bool) {
+	testFilesListBox = tview.NewList().
+		SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
+			// It would be good if we had already processed and had an object to read from
+			// Then we know how many tests we have
+			if filesPresent {
+				var test_err = runAutomatedTest(automator, index, cliDevice)
+				if test_err != nil {
+					logToHistory(fmt.Sprintf("%v", test_err))
 				}
-			})
-		cmdListBox.SetTitle(" CLI Commands ").SetBorder(true)
-
-		// This is the list of test files
-		testFilesListBox = tview.NewList().
-			SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
-				// It would be good if we had already processed and had an object to read from
-				// Then we know how many tests we have
-				if automator_err == nil {
-					var test_err = runAutomatedTest(automator, index, device)
-					if test_err != nil {
-						logToHistory(fmt.Sprintf("%v", test_err))
-					}
-				}
-
-			})
-		testFilesListBox.SetTitle(" Test Files ").
-			SetBorder(true)
-		// Load up the Test File Automation
-		logToHistory("Checking for Test Automation files...")
-		if automator_err != nil {
-			logToHistory(fmt.Sprintf("%v", automator_err))
-		} else {
-			logToHistory("Test Automation Files Detected!")
-			for num, testFile := range automator.TestFiles {
-				testFilesListBox.AddItem(testFile.TestFileName, "", getShortcutRuneForCount(num), nil)
 			}
-		}
 
+		})
+	testFilesListBox.SetTitle(" Test Files ").
+		SetBorder(true)
+
+	var logMessage = "No Test Automation Files detected"
+	if filesPresent {
+		logMessage = "Test Automation Files Detected!"
+		for num, testFile := range automator.TestFiles {
+			testFilesListBox.AddItem(testFile.TestFileName, "", getShortcutRuneForCount(num), nil)
+		}
+	}
+	if cliDevice.IsOpen {
+		logToHistory(logMessage)
+	}
+}
+
+// Builds the device logs UI element, this is only built if a log device has been passed in and opened
+func uiBuildDeviceLogs() {
+	logsBox = tview.NewTextView()
+	logsBox.SetTitle(" Logs ").SetBorder(true)
+}
+
+// Good example of how rows and columns work:
+// https://github.com/rivo/tview/blob/master/demos/grid/main.go
+// TODO: If no devices are passed, this should not crash, it should fail gracefully
+func CreateTView(cliDevice device.Device, logDevice device.Device) *tview.Application {
+
+	app = tview.NewApplication()
+	cmdInputHistory = make([]string, 0)
+
+	// First check for test automation files so its available when creating callback function
+	var automator, automator_err = test_automation.NewTestFileAutomator()
+
+	// This is the main UI that holds everything
+	mainGrid := tview.NewGrid().
+		SetRows(0)
+
+	// Build the UI elements
+	uiBuildCmdBox(cliDevice)
+	uiBuildCmdHistory(mainGrid)
+	uiBuildCmdListBox(cliDevice)
+	uiBuildTestAutomationFileListBox(cliDevice, automator, (automator_err == nil))
+
+	// Adjust the UI to account for the Logs UI element
+	if logDevice.IsOpen {
+		logToHistory("Connected to Logging COM Port")
+
+		// Since there are device logs, place the Test Automation files in a grid with the Command list, left most column
 		cmdAndTestFileGrid := tview.NewGrid().SetRows(0, 2).SetColumns(0)
 		cmdAndTestFileGrid.
 			AddItem(cmdListBox, 0, 0, 1, 1, 0, 0, false).
 			AddItem(testFilesListBox, 1, 0, 2, 1, 0, 0, false)
-
 		mainGrid.AddItem(cmdAndTestFileGrid, 0, 0, 1, 1, 0, 0, false)
 
 		// Right-most column, logs
-		logsBox = tview.NewTextView()
-		logsBox.SetTitle(" Logs ").SetBorder(true)
+		uiBuildDeviceLogs()
 		mainGrid.AddItem(logsBox, 0, 2, 1, 1, 0, 0, false)
 
 		mainGrid.SetColumns(40, 80, 0)
-	}
-
-	if device.IsOpen {
-		logToHistory("Connected to CLI COM Port")
-	}
-
-	if deviceLogs.IsOpen {
-		logToHistory("Connected to Logging COM Port")
-	}
-
-	logToHistory("Loading commands...")
-
-	// Load the commands from the device
-	device.LoadCmds()
-	for num, cmd := range device.Commands {
-		cmdListBox.AddItem(cmd.CmdText, cmd.Description, getShortcutRuneForCount(num), nil)
-	}
-	if len(device.Commands) > 0 {
-		logToHistory("Commands loaded!")
 	} else {
-		logToHistory("No commands recevied and parsed when 'help' command sent. \nCheck your response syntax or connection.")
+		mainGrid.AddItem(cmdListBox, 0, 0, 1, 1, 0, 0, false)
+
+		// No logs, so the list of Test Automation files is the right most column
+		mainGrid.AddItem(testFilesListBox, 0, 2, 1, 1, 0, 0, false)
+
+		mainGrid.SetColumns(40, 0, 40)
 	}
 
-	logToHistory("\n")
+	// Load up CLI commands
+	loadCLICmds(cliDevice)
 
 	// Now run all the setup, connections, etc.
 	// TODO should we move this out of SetFocus??
@@ -250,8 +215,25 @@ func CreateTView(device device.Device, deviceLogs device.Device) *tview.Applicat
 	return app
 }
 
-func logToDeviceLogs(msg string) {
-	fmt.Fprintln(logsBox, msg)
+func loadCLICmds(cliDevice device.Device) {
+	// If the CLI device is open, attempt to load commands
+	if cliDevice.IsOpen {
+		logToHistory("Connected to CLI COM Port")
+
+		logToHistory("Loading commands...")
+		// Load the commands from the device
+		cliDevice.LoadCmds()
+		for num, cmd := range cliDevice.Commands {
+			cmdListBox.AddItem(cmd.CmdText, cmd.Description, getShortcutRuneForCount(num), nil)
+		}
+		if len(cliDevice.Commands) > 0 {
+			logToHistory("Commands loaded!")
+		} else {
+			logToHistory("No commands recevied and parsed when 'help' command sent. \nCheck your response syntax or connection.")
+		}
+
+		logToHistory("\n")
+	}
 }
 
 func logToHistory(msg string) {

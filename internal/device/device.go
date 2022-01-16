@@ -2,6 +2,7 @@ package device
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -58,7 +59,10 @@ func (device *Device) Close() error {
 }
 
 func (device *Device) Write(cmd string) (int, error) {
-	return fmt.Fprintf(device.p, "%s%s", cmd, device.tx_terminator)
+	if device.IsOpen {
+		return fmt.Fprintf(device.p, "%s%s", cmd, device.tx_terminator)
+	}
+	return 0, errors.New("device is not open, unable to send")
 }
 
 func (device *Device) Read(b []byte) (n int, err error) {
@@ -75,7 +79,11 @@ func (device *Device) Read(b []byte) (n int, err error) {
 	return n, err
 }
 
+// This is a single function to send a command and wait for a response
 func (device *Device) TXcmdRXresponse(cmd string) (response string, err error) {
+	if !device.IsOpen {
+		return "", errors.New("port is not open, unable to send data")
+	}
 	// Send command
 	fmt.Fprintf(device.p, "%s%s", cmd, device.tx_terminator)
 	// Get response
