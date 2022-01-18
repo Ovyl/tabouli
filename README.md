@@ -25,8 +25,14 @@ Note: We use `asdf` to manage golang installations below, but feel free to use w
 Start by installing dependencies:  
 `go get`  
 
-Then run the TUI from Source:  
-`go run main.go tui /dev/tty.usbserial-2111430`
+Then run the TUI from Source, if you just have a CLI device:  
+`go run main.go tui --cli /dev/tty.usbserial-123`  
+  
+If you have both a CLI port and a separate logging port (optional):
+`go run main.go tui --cli /dev/tty.usbserial-123 --logs /dev/tty.usbmodem666`  
+  
+If you want to use tabouli to just display your logs if you don't have a CLI:  
+`go run main.go tui --logs /dev/tty.usbmodem666`
 
 ## Running A Binary
 Create the binary:  

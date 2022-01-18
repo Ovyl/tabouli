@@ -20,6 +20,8 @@ var (
 	testFilesListBox     *tview.List
 	cmdInputHistory      []string
 	cmdInputHistoryIndex int
+	cliDevice            device.Device
+	logsDevice           device.Device
 )
 
 // Invoked by the CLI device RX byte routine
@@ -30,43 +32,12 @@ func LogToUI(b byte) {
 }
 
 // Builds the Command Box (where you type in commands) UI element
-func uiBuildCmdBox(cliDevice device.Device) {
+func uiBuildCmdBox() {
 	cmdBox = tview.NewInputField().
 		SetFieldBackgroundColor(tcell.ColorBlack).
-		SetPlaceholderStyle(tcell.StyleDefault.Blink(true)).
-		SetDoneFunc(func(key tcell.Key) {
-			if key == tcell.KeyEnter {
-				cmd := cmdBox.GetText()
-				logToHistory(fmt.Sprintf(">> %s", cmd))
-				cmdBox.SetText("")
-				cmdInputHistory = append(cmdInputHistory, cmd)
-				cmdInputHistoryIndex = len(cmdInputHistory)
-				var response, err = cliDevice.TXcmdRXresponse(cmd)
-				if err != nil {
-					logToHistory(fmt.Sprintf("error reading from device %s\n", err))
-				} else {
-					logToHistory(fmt.Sprint(response))
-				}
-			}
-		}).
-		SetChangedFunc(func(text string) {
-			if len(text) == 0 {
-				cmdBox.SetFieldBackgroundColor(tcell.ColorBlack)
-				return
-			}
-			for _, v := range cliDevice.Commands {
-				// Get first portion of what the user has typed in
-				// We do this in case a command has parameters
-				typedCmd := strings.Split(text, " ")
-				supportedCmds := strings.Split(v.CmdText, " ")
-				if strings.HasPrefix(typedCmd[0], supportedCmds[0]) {
-					cmdBox.SetFieldBackgroundColor(tcell.ColorGreen)
-					return
-				}
-			}
-			cmdBox.SetFieldBackgroundColor(tcell.ColorRed)
-		})
-	cmdBox.SetBorder(true).SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		SetPlaceholderStyle(tcell.StyleDefault.Blink(true))
+	cmdBox.SetBorder(true)
+	cmdBox.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if len(cmdInputHistory) == 0 {
 			return event
 		}
@@ -91,6 +62,37 @@ func uiBuildCmdBox(cliDevice device.Device) {
 		}
 		return nil
 	})
+	cmdBox.SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEnter {
+			cmd := cmdBox.GetText()
+			logToHistory(fmt.Sprintf(">> %s", cmd))
+			cmdBox.SetText("")
+			cmdInputHistory = append(cmdInputHistory, cmd)
+			cmdInputHistoryIndex = len(cmdInputHistory)
+			var response, err = cliDevice.TXcmdRXresponse(cmd)
+			if err != nil {
+				logToHistory(fmt.Sprintf("error reading from device %s\n", err))
+			} else {
+				logToHistory(fmt.Sprint(response))
+			}
+		}
+	}).SetChangedFunc(func(text string) {
+		if len(text) == 0 {
+			cmdBox.SetFieldBackgroundColor(tcell.ColorBlack)
+			return
+		}
+		for _, v := range cliDevice.Commands {
+			// Get first portion of what the user has typed in
+			// We do this in case a command has parameters
+			typedCmd := strings.Split(text, " ")
+			supportedCmds := strings.Split(v.CmdText, " ")
+			if strings.HasPrefix(typedCmd[0], supportedCmds[0]) {
+				cmdBox.SetFieldBackgroundColor(tcell.ColorGreen)
+				return
+			}
+		}
+		cmdBox.SetFieldBackgroundColor(tcell.ColorRed)
+	})
 }
 
 // Builds the Command Hisory List UI element
@@ -98,6 +100,16 @@ func uiBuildCmdHistory(mainGrid *tview.Grid) {
 	// This is the main "log" of all commands and responses
 	cmdHistoryBox = tview.NewTextView()
 	cmdHistoryBox.SetTitle(" CLI History ").SetBorder(true)
+	cmdListBox.SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
+		// Send the command
+		logToHistory(fmt.Sprintf(">> %s", main_text))
+		var response, err = cliDevice.TXcmdRXresponse(main_text)
+		if err != nil {
+			logToHistory(fmt.Sprintf("error reading from device %s\n", err))
+		} else {
+			logToHistory(fmt.Sprint(response))
+		}
+	})
 	historyAndCmdInputGrid := tview.NewGrid().SetRows(0, 3).SetColumns(0)
 	historyAndCmdInputGrid.
 		AddItem(cmdHistoryBox, 0, 0, 1, 1, 0, 0, false).
@@ -105,24 +117,14 @@ func uiBuildCmdHistory(mainGrid *tview.Grid) {
 	mainGrid.AddItem(historyAndCmdInputGrid, 0, 1, 1, 1, 0, 0, false)
 }
 
-func uiBuildCmdListBox(cliDevice device.Device) {
+func uiBuildCmdListBox() {
 	// This is the left most column
-	cmdListBox = tview.NewList().
-		SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
-			// Send the command
-			logToHistory(fmt.Sprintf(">> %s", main_text))
-			var response, err = cliDevice.TXcmdRXresponse(main_text)
-			if err != nil {
-				logToHistory(fmt.Sprintf("error reading from device %s\n", err))
-			} else {
-				logToHistory(fmt.Sprint(response))
-			}
-		})
+	cmdListBox = tview.NewList()
 	cmdListBox.SetTitle(" CLI Commands ").SetBorder(true)
 }
 
 // Builds the Test Automation File list UI element
-func uiBuildTestAutomationFileListBox(cliDevice device.Device, automator test_automation.TestFileAutomator, filesPresent bool) {
+func uiBuildTestAutomationFileListBox(automator test_automation.TestFileAutomator, filesPresent bool) {
 	testFilesListBox = tview.NewList().
 		SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
 			// It would be good if we had already processed and had an object to read from
@@ -153,13 +155,17 @@ func uiBuildTestAutomationFileListBox(cliDevice device.Device, automator test_au
 // Builds the device logs UI element, this is only built if a log device has been passed in and opened
 func uiBuildDeviceLogs() {
 	logsBox = tview.NewTextView()
-	logsBox.SetTitle(" Logs ").SetBorder(true)
+	logsBox.SetTitle(" Device Logs ").SetBorder(true)
+	fmt.Fprintf(logsBox, "Connected to Log COM Port.\n\n")
 }
 
 // Good example of how rows and columns work:
 // https://github.com/rivo/tview/blob/master/demos/grid/main.go
 // TODO: If no devices are passed, this should not crash, it should fail gracefully
-func CreateTView(cliDevice device.Device, logDevice device.Device) *tview.Application {
+func CreateTView(cli device.Device, logs device.Device) *tview.Application {
+
+	cliDevice = cli
+	logsDevice = logs
 
 	app = tview.NewApplication()
 	cmdInputHistory = make([]string, 0)
@@ -171,52 +177,60 @@ func CreateTView(cliDevice device.Device, logDevice device.Device) *tview.Applic
 	mainGrid := tview.NewGrid().
 		SetRows(0)
 
-	// Build the UI elements
-	uiBuildCmdBox(cliDevice)
-	uiBuildCmdHistory(mainGrid)
-	uiBuildCmdListBox(cliDevice)
-	uiBuildTestAutomationFileListBox(cliDevice, automator, (automator_err == nil))
+	// To DRY up the code, this is common if the CLI is open
+	if cliDevice.IsOpen {
 
-	// Adjust the UI to account for the Logs UI element
-	if logDevice.IsOpen {
-		logToHistory("Connected to Logging COM Port")
+		// Build the UI elements for the CLI
+		uiBuildCmdBox()
+		uiBuildCmdListBox()
+		uiBuildCmdHistory(mainGrid)
+		uiBuildTestAutomationFileListBox(automator, (automator_err == nil))
 
-		// Since there are device logs, place the Test Automation files in a grid with the Command list, left most column
+		// Attemptt to load the commands from the help command response
+		loadCLICmds(&cliDevice)
+	}
+
+	// There are 3 different UI's: CLI + Logs, CLI + no Logs, no CLI + Logs
+	if cliDevice.IsOpen && logsDevice.IsOpen {
+		// This will be the UI with columns: | Commands + Test Automation | Command History | Logs |
+
+		// Build the UI elements for the Logs + CLI
 		cmdAndTestFileGrid := tview.NewGrid().SetRows(0, 2).SetColumns(0)
 		cmdAndTestFileGrid.
 			AddItem(cmdListBox, 0, 0, 1, 1, 0, 0, false).
 			AddItem(testFilesListBox, 1, 0, 2, 1, 0, 0, false)
 		mainGrid.AddItem(cmdAndTestFileGrid, 0, 0, 1, 1, 0, 0, false)
-
-		// Right-most column, logs
 		uiBuildDeviceLogs()
+
 		mainGrid.AddItem(logsBox, 0, 2, 1, 1, 0, 0, false)
-
-		mainGrid.SetColumns(40, 80, 0)
-	} else {
+		mainGrid.SetColumns(40, 100, 0)
+	} else if cliDevice.IsOpen && !logsDevice.IsOpen {
+		// This will be the UI with columns: | Commands | Command History | Test Automation |
+		// Set the CLI element locations
 		mainGrid.AddItem(cmdListBox, 0, 0, 1, 1, 0, 0, false)
-
-		// No logs, so the list of Test Automation files is the right most column
 		mainGrid.AddItem(testFilesListBox, 0, 2, 1, 1, 0, 0, false)
-
 		mainGrid.SetColumns(40, 0, 40)
+	} else {
+		// This will be the UI with columns: | Logs |
+		uiBuildDeviceLogs()
+		mainGrid.AddItem(logsBox, 0, 0, 1, 1, 0, 0, false)
+		mainGrid.SetColumns(0)
 	}
 
-	// Load up CLI commands
-	loadCLICmds(cliDevice)
-
 	// Now run all the setup, connections, etc.
-	// TODO should we move this out of SetFocus??
 	mainGrid.SetFocusFunc(func() {
-		app.SetFocus(cmdBox)
+		if cliDevice.IsOpen {
+			app.SetFocus(cmdBox)
+		}
 	})
 
 	app.SetRoot(mainGrid, true).EnableMouse(true)
 	return app
 }
 
-func loadCLICmds(cliDevice device.Device) {
+func loadCLICmds(cliDevice *device.Device) {
 	// If the CLI device is open, attempt to load commands
+	var count = 0
 	if cliDevice.IsOpen {
 		logToHistory("Connected to CLI COM Port")
 
@@ -226,13 +240,12 @@ func loadCLICmds(cliDevice device.Device) {
 		for num, cmd := range cliDevice.Commands {
 			cmdListBox.AddItem(cmd.CmdText, cmd.Description, getShortcutRuneForCount(num), nil)
 		}
-		if len(cliDevice.Commands) > 0 {
-			logToHistory("Commands loaded!")
+		count = len(cliDevice.Commands)
+		if count > 0 {
+			logToHistory(fmt.Sprintf("%d Commands loaded!\n", len(cliDevice.Commands)))
 		} else {
-			logToHistory("No commands recevied and parsed when 'help' command sent. \nCheck your response syntax or connection.")
+			logToHistory("No commands recevied and parsed when 'help' command sent. \nCheck your response syntax or connection.\n")
 		}
-
-		logToHistory("\n")
 	}
 }
 
