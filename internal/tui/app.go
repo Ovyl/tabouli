@@ -18,6 +18,8 @@ var (
 	logsBox              *tview.TextView
 	cmdListBox           *tview.List
 	testFilesListBox     *tview.List
+	footer               *tview.Flex
+	footerOptions        *tview.TextView
 	cmdInputHistory      []string
 	cmdInputHistoryIndex int
 	cliDevice            device.Device
@@ -96,10 +98,16 @@ func uiBuildCmdBox() {
 }
 
 // Builds the Command Hisory List UI element
-func uiBuildCmdHistory(mainGrid *tview.Grid) {
+func uiBuildCmdHistory() {
 	// This is the main "log" of all commands and responses
 	cmdHistoryBox = tview.NewTextView()
 	cmdHistoryBox.SetTitle(" CLI History ").SetBorder(true)
+}
+
+func uiBuildCmdListBox() {
+	// This is the left most column
+	cmdListBox = tview.NewList()
+	cmdListBox.SetTitle(" CLI Commands ").SetBorder(true)
 	cmdListBox.SetSelectedFunc(func(index int, main_text string, sec_text string, r rune) {
 		// Send the command
 		logToHistory(fmt.Sprintf(">> %s", main_text))
@@ -110,17 +118,14 @@ func uiBuildCmdHistory(mainGrid *tview.Grid) {
 			logToHistory(fmt.Sprint(response))
 		}
 	})
+}
+
+func uiBuildHistoryAndCmdBoxGrid(mainGrid *tview.Grid) {
 	historyAndCmdInputGrid := tview.NewGrid().SetRows(0, 3).SetColumns(0)
 	historyAndCmdInputGrid.
 		AddItem(cmdHistoryBox, 0, 0, 1, 1, 0, 0, false).
 		AddItem(cmdBox, 1, 0, 1, 1, 0, 0, false)
-	mainGrid.AddItem(historyAndCmdInputGrid, 0, 1, 1, 1, 0, 0, false)
-}
-
-func uiBuildCmdListBox() {
-	// This is the left most column
-	cmdListBox = tview.NewList()
-	cmdListBox.SetTitle(" CLI Commands ").SetBorder(true)
+	mainGrid.AddItem(historyAndCmdInputGrid, 1, 0, 1, 1, 0, 0, false)
 }
 
 // Builds the Test Automation File list UI element
@@ -135,7 +140,6 @@ func uiBuildTestAutomationFileListBox(automator test_automation.TestFileAutomato
 					logToHistory(fmt.Sprintf("%v", test_err))
 				}
 			}
-
 		})
 	testFilesListBox.SetTitle(" Test Files ").
 		SetBorder(true)
@@ -153,10 +157,42 @@ func uiBuildTestAutomationFileListBox(automator test_automation.TestFileAutomato
 }
 
 // Builds the device logs UI element, this is only built if a log device has been passed in and opened
-func uiBuildDeviceLogs() {
+func uiBuildDeviceLogsWithCLI() {
 	logsBox = tview.NewTextView()
 	logsBox.SetTitle(" Device Logs ").SetBorder(true)
-	fmt.Fprintf(logsBox, "Connected to Log COM Port.\n\n")
+	logToLogs("Connected to Log COM Port.\n\n")
+}
+
+func uiBuildDeviceLogs(mainGrid *tview.Grid) {
+	mainGrid.SetColumns(0)
+	mainGrid.SetRows(0, 2)
+
+	logsBox = tview.NewTextView()
+	logsBox.SetFocusFunc(func() {
+		app.SetFocus(footerOptions)
+	})
+	logsBox.SetTitle(" Device Logs ").SetBorder(true)
+	mainGrid.AddItem(logsBox, 0, 0, 1, 1, 0, 0, false)
+	logToLogs("Connected to Log COM Port.\n\n")
+
+	footerOptions = tview.NewTextView().
+		SetDynamicColors(true).
+		SetRegions(true).
+		SetWrap(false)
+	footerOptions.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// This is Shift + C
+		if event.Rune() == rune(67) {
+			logsBox.Clear()
+		}
+		return event
+	})
+	optionText := fmt.Sprintf(`  ["%d"] %s[""] `, 0, "Shift + C: Clear Logs")
+	footerOptions.Highlight(optionText)
+	fmt.Fprint(footerOptions, optionText)
+	footer = tview.NewFlex().SetDirection(tview.FlexRow).AddItem(footerOptions, 0, 1, false)
+
+	mainGrid.AddItem(footer, 1, 0, 1, 1, 0, 0, false)
+	app.SetFocus(footer)
 }
 
 // Good example of how rows and columns work:
@@ -183,7 +219,8 @@ func CreateTView(cli device.Device, logs device.Device) *tview.Application {
 		// Build the UI elements for the CLI
 		uiBuildCmdBox()
 		uiBuildCmdListBox()
-		uiBuildCmdHistory(mainGrid)
+		uiBuildCmdHistory()
+		uiBuildHistoryAndCmdBoxGrid(mainGrid)
 		uiBuildTestAutomationFileListBox(automator, (automator_err == nil))
 
 		// Attemptt to load the commands from the help command response
@@ -200,7 +237,7 @@ func CreateTView(cli device.Device, logs device.Device) *tview.Application {
 			AddItem(cmdListBox, 0, 0, 1, 1, 0, 0, false).
 			AddItem(testFilesListBox, 1, 0, 2, 1, 0, 0, false)
 		mainGrid.AddItem(cmdAndTestFileGrid, 0, 0, 1, 1, 0, 0, false)
-		uiBuildDeviceLogs()
+		uiBuildDeviceLogsWithCLI()
 
 		mainGrid.AddItem(logsBox, 0, 2, 1, 1, 0, 0, false)
 		mainGrid.SetColumns(40, 100, 0)
@@ -212,9 +249,7 @@ func CreateTView(cli device.Device, logs device.Device) *tview.Application {
 		mainGrid.SetColumns(40, 0, 40)
 	} else {
 		// This will be the UI with columns: | Logs |
-		uiBuildDeviceLogs()
-		mainGrid.AddItem(logsBox, 0, 0, 1, 1, 0, 0, false)
-		mainGrid.SetColumns(0)
+		uiBuildDeviceLogs(mainGrid)
 	}
 
 	// Now run all the setup, connections, etc.
@@ -247,6 +282,10 @@ func loadCLICmds(cliDevice *device.Device) {
 			logToHistory("No commands recevied and parsed when 'help' command sent. \nCheck your response syntax or connection.\n")
 		}
 	}
+}
+
+func logToLogs(msg string) {
+	fmt.Fprintln(logsBox, msg)
 }
 
 func logToHistory(msg string) {
