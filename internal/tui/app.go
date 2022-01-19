@@ -125,7 +125,7 @@ func uiBuildHistoryAndCmdBoxGrid(mainGrid *tview.Grid) {
 	historyAndCmdInputGrid.
 		AddItem(cmdHistoryBox, 0, 0, 1, 1, 0, 0, false).
 		AddItem(cmdBox, 1, 0, 1, 1, 0, 0, false)
-	mainGrid.AddItem(historyAndCmdInputGrid, 1, 0, 1, 1, 0, 0, false)
+	mainGrid.AddItem(historyAndCmdInputGrid, 0, 1, 1, 1, 0, 0, false)
 }
 
 // Builds the Test Automation File list UI element
