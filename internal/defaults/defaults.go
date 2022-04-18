@@ -10,16 +10,22 @@ import (
 
 // YAML Parsing Only
 type DefaultFile struct {
-	SerialBaudRate int    `yaml:"baud"`
-	SerialDataBits int    `yaml:"data_bits"`
-	SerialStopBits int    `yaml:"stop_bits"`
-	SerialParity   string `yaml:"parity"`
-	TXTerminator   string `yaml:"tx_terminator"`
-	RXTerminator   string `yaml:"rx_terminator"`
+	CLIBaudRate      int    `yaml:"cli_baud"`
+	CLIDataBits      int    `yaml:"cli_data_bits"`
+	CLIStopBits      int    `yaml:"cli_stop_bits"`
+	CLIParity        string `yaml:"cli_parity"`
+	CLITXTerminator  string `yaml:"cli_tx_terminator"`
+	CLIRXTerminator  string `yaml:"cli_rx_terminator"`
+	LogsBaudRate     int    `yaml:"logs_baud"`
+	LogsDataBits     int    `yaml:"logs_data_bits"`
+	LogsStopBits     int    `yaml:"logs_stop_bits"`
+	LogsParity       string `yaml:"logs_parity"`
+	LogsTXTerminator string `yaml:"logs_tx_terminator"`
+	LogsRXTerminator string `yaml:"logs_rx_terminator"`
 }
 
 // func NewTestFileAutomator() (TestFileAutomator, error) {
-func NewDefaultFileHanlder() (DefaultFile, error) {
+func NewDefaultFileHanlder(cli bool, logs bool) (DefaultFile, error) {
 	var file = file_io.FindFilesWithPattern(".", "defaults.yaml")
 	defaultFile := DefaultFile{}
 	if file == nil {
@@ -34,9 +40,18 @@ func NewDefaultFileHanlder() (DefaultFile, error) {
 		return defaultFile, errors.New("error parsing yaml")
 	}
 
-	if defaultFile.RXTerminator == "" || defaultFile.TXTerminator == "" {
-		log.Fatal("terminators not found in defaults file")
-		return defaultFile, errors.New("error with yaml terminators")
+	if cli {
+		if defaultFile.CLIRXTerminator == "" || defaultFile.CLITXTerminator == "" {
+			log.Fatal("cli terminators not found in defaults file")
+			return defaultFile, errors.New("error with yaml terminators")
+		}
+	}
+
+	if logs {
+		if defaultFile.LogsRXTerminator == "" || defaultFile.LogsTXTerminator == "" {
+			log.Fatal("logs terminators not found in defaults file")
+			return defaultFile, errors.New("error with yaml terminators")
+		}
 	}
 
 	return defaultFile, nil

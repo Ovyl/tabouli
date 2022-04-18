@@ -2,6 +2,7 @@ package device
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -27,6 +28,7 @@ type Device struct {
 	p             serial.Port
 	Commands      []Cmd
 	reader        *crlfReader
+	IsOpen        bool
 	tx_terminator string
 	rx_terminator string
 }
@@ -40,10 +42,12 @@ func NewDevice(config serial.Config, terminators Terminators) Device {
 }
 
 func (device *Device) Open() (err error) {
+	device.IsOpen = false
 	device.p, err = serial.Open(&device.config)
 	if err != nil {
 		return err
 	}
+	device.IsOpen = true
 	device.reader = &crlfReader{
 		r: bufio.NewReader(device.p),
 	}
@@ -55,7 +59,10 @@ func (device *Device) Close() error {
 }
 
 func (device *Device) Write(cmd string) (int, error) {
-	return fmt.Fprintf(device.p, "%s%s", cmd, device.tx_terminator)
+	if device.IsOpen {
+		return fmt.Fprintf(device.p, "%s%s", cmd, device.tx_terminator)
+	}
+	return 0, errors.New("device is not open, unable to send")
 }
 
 func (device *Device) Read(b []byte) (n int, err error) {
@@ -72,7 +79,11 @@ func (device *Device) Read(b []byte) (n int, err error) {
 	return n, err
 }
 
+// This is a single function to send a command and wait for a response
 func (device *Device) TXcmdRXresponse(cmd string) (response string, err error) {
+	if !device.IsOpen {
+		return "", errors.New("port is not open, unable to send data")
+	}
 	// Send command
 	fmt.Fprintf(device.p, "%s%s", cmd, device.tx_terminator)
 	// Get response
@@ -87,6 +98,17 @@ func (device *Device) TXcmdRXresponse(cmd string) (response string, err error) {
 		input.WriteString(string(c))
 	}
 	return input.String(), err
+}
+
+// This should be called in a routine, it will run forever
+func (device *Device) RXLogsForever(f func(byte)) {
+
+	for {
+		var c, err = device.reader.r.ReadByte()
+		if err == nil {
+			f(c)
+		}
+	}
 }
 
 // This gets the supported commands from the device via the "help" command

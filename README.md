@@ -7,26 +7,38 @@ Tabouli, written in [Go](https://go.dev/), is also a delicious Mediterranean dis
 
 Made @ [Ovyl](https://ovyl.io/) <img src="imgs/ovyl-logo.jpg" alt="ovyl" width="12"/>  
 
-![Screenshot](/imgs/tabouli-main.png)
+## Modes  
+Tabouli supports 3 different modes, dependent on what parameters you pass in.  
+You can run with support for just a CLI:  
+`... tui --cli /com/port`  
+OR support for a CLI and Logs (this assumes 2 different com ports/uart connections):  
+`... tui --cli /com/port --logs /other/com/port`
+OR support for just logs:  
+`... tui --logs /com/port`  
+This means there are 3 distinct UI's based on the parameters you pass in.
 
-## Installation
-First, enable golang plugin:  
-`asdf plugin-add golang https://github.com/kennyp/asdf-golang.git`  
+CLI + Logs:
+![Screenshot](/imgs/tabouli-full-ui.png)  
+CLI Only:
+![Screenshot](/imgs/tabouli-cli-only.png)  
+Logs Only:
+![Screenshot](/imgs/tabouli-logs-only.png)
 
-Next, install latest:  
-`asdf install golang latest`  
-
-Lastly, Reshim:  
-`asdf reshim golang`  
-
-Note: We use `asdf` to manage golang installations below, but feel free to use whatever method you like.
-  
+## Dependencies
+Make sure you have Go installed. We use asdf. More information [here](/docs/asdf.md).
+ 
 ## Running From Source
 Start by installing dependencies:  
 `go get`  
 
-Then run the TUI from Source:  
-`go run main.go tui /dev/tty.usbserial-2111430`
+Then run the TUI from Source, if you just have a CLI device:  
+`go run main.go tui --cli /dev/tty.usbserial-123`  
+  
+If you have both a CLI port and a separate logging port (optional):
+`go run main.go tui --cli /dev/tty.usbserial-123 --logs /dev/tty.usbmodem666`  
+  
+If you want to use tabouli to just display your logs if you don't have a CLI:  
+`go run main.go tui --logs /dev/tty.usbmodem666`
 
 ## Running A Binary
 Create the binary:  
